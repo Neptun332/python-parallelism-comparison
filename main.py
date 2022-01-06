@@ -40,6 +40,7 @@ def run_program3():
 
 
 if __name__ == '__main__':
-    asyncio_processing_unit = AsyncioProcessingUnit(1000,
-                                                    [100, 20, 50, 30, 120, 50, 10, 80, 90, 10, 5, 30, 40, 10, 100])
+    asyncio_processing_unit = AsyncioProcessingUnit(duration=1000,
+                                                    sending_schedule=[100, 20, 50, 30, 120, 50, 10, 80, 90, 10, 5, 30,
+                                                                      40, 10, 100])
     asyncio_processing_unit.start()

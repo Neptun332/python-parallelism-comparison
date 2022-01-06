@@ -4,10 +4,12 @@ from typing import List
 
 import aiohttp
 
+Tick = int
+
 
 class AsyncioProcessingUnit:
 
-    def __init__(self, duration: int, sending_schedule: List[int], inner_processing_time: float = 0.2,
+    def __init__(self, duration: Tick, sending_schedule: List[int], inner_processing_time: float = 0.2,
                  url: str = "http://127.0.0.1:5000//api/v1/do_something"):
         self._validate(duration, sending_schedule)
         self.duration = duration
@@ -17,39 +19,44 @@ class AsyncioProcessingUnit:
         self.inner_processing_time = inner_processing_time
         self.url = url
         self.iter = 0
-        self.last_task = None
+        self.tasks_control = []
 
     def start(self):
+        asyncio.run(self.processing_loop())
+
+    async def processing_loop(self):
         for i in range(self.duration):
-            self.repetitive_task()
+            await self.repetitive_task()
             if self.should_send_event():
-                print("a")
-                asyncio.run(self.run_sender())
+                self.run_sender()
             self.iter += 1
 
-    def repetitive_task(self):
-        time.sleep(self.inner_processing_time)
+    async def repetitive_task(self):
+        await asyncio.sleep(self.inner_processing_time)
 
     def should_send_event(self):
-        if self.iter % self.current_schedule_value == 0:
-            self.current_schedule_value = next(self.iter_sending_schedule, self.sending_schedule[-1])
+        if self.current_schedule_value and self.iter % self.current_schedule_value == 0:
+            self.current_schedule_value = next(self.iter_sending_schedule, None)
             return True
         return False
 
-    async def run_sender(self):
-        try:
-            if self.last_task:
-                await self.last_task
-            self.last_task = asyncio.create_task(self.invoke_endpoint(self.url))
-        except Exception as e:
-            print(e)
+    def run_sender(self):
+        print("Created task to send data")
+        task = asyncio.create_task(self.invoke_endpoint(self.url))
+        task.add_done_callback(self.print_result)
+        self.tasks_control.append(task)
 
     async def invoke_endpoint(self, url):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
-                print('#', response.status)
+                return response
 
-    def _validate(self, duration, sending_schedule):
+    @staticmethod
+    def print_result(response):
+        print('#', response._result.status)
+
+    @staticmethod
+    def _validate(duration, sending_schedule):
         if type(duration) != int:
             raise TypeError("duration should be int value")
         if type(sending_schedule) != list:
